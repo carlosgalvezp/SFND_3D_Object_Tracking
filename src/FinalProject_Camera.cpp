@@ -92,7 +92,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
         // load image from file
         cv::Mat img = cv::imread(imgFullFilename);
 
-        bVis = true;
+        bVis = false;
         if (bVis)
         {
             cv::imshow("Input camera image", img);
@@ -132,7 +132,6 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
                       yoloBasePath, yoloClassesFile, yoloModelConfiguration, yoloModelWeights, bVis);
 
         std::cout << "#2 : DETECT & CLASSIFY OBJECTS done" << std::endl;
-        std::cout << "Found " << current_frame.boundingBoxes.size() << std::endl;
 
         /* CROP LIDAR POINTS */
 
@@ -234,7 +233,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
             // store matches in current data frame
             current_frame.kptMatches = matches;
 
-            bVis = true;
+            bVis = false;
             if (bVis)
             {
                 cv::Mat matchImg = current_frame.cameraImg.clone();
@@ -314,7 +313,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
                                                         sensorFrameRate);
                     //// EOF STUDENT ASSIGNMENT
 
-                    bVis = true;
+                    bVis = false;
                     if (bVis)
                     {
                         cv::Mat visImg = current_frame.cameraImg.clone();

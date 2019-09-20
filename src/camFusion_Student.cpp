@@ -16,41 +16,6 @@ double distance(const LidarPoint& a, const LidarPoint& b)
     return std::sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 }
 
-double findClosestLidarPointInLane(const std::vector<LidarPoint>& lidar_points)
-{
-    // Filtering parameters
-    const double lane_width = 4.0;
-    const int min_n_neighbors = 5;
-    const double max_neighbor_distance = 0.1;
-
-    // Output
-    double min_x = std::numeric_limits<double>::max();
-
-    for (const LidarPoint& point : lidar_points)
-    {
-        if ((point.x < min_x) && (std::fabs(point.y) < 0.5 * lane_width))
-        {
-            int n_neighbors = 0;
-            for (const LidarPoint& neighbor : lidar_points)
-            {
-                if (distance(point, neighbor) < max_neighbor_distance)
-                {
-                    ++n_neighbors;
-                }
-
-                // Found a point with a small distance and close enough neighbors
-                if (n_neighbors == min_n_neighbors)
-                {
-                    min_x = point.x;
-                    break;
-                }
-            }
-        }
-    }
-
-    return min_x;
-}
-
 template<typename T>
 double median(std::vector<T>& data)
 {
@@ -69,6 +34,26 @@ double median(std::vector<T>& data)
     }
 
     return output;
+}
+
+double findClosestLidarPointInLane(const std::vector<LidarPoint>& lidar_points)
+{
+    // Create a vector of x disances and sort them
+    std::vector<double> x_distances;
+    for (const LidarPoint& point : lidar_points)
+    {
+        x_distances.push_back(point.x);
+    }
+
+    std::sort(x_distances.begin(), x_distances.end());
+
+    // Take the N closest points
+    const std::size_t kNumberClosestPoints = 10U;
+    std::vector<float> closest_x_distances(kNumberClosestPoints);
+    std::copy(x_distances.begin(), x_distances.begin() + kNumberClosestPoints, closest_x_distances.begin());
+
+    // Compute median to remove outliers
+    return median(closest_x_distances);
 }
 
 }  // namespace
@@ -280,9 +265,13 @@ double computeTTCLidar(const std::vector<LidarPoint>& lidarPointsPrev,
     const double minXPrev = findClosestLidarPointInLane(lidarPointsPrev);
     const double minXCurr = findClosestLidarPointInLane(lidarPointsCurr);
 
+    std::cout << "min x prev: " << minXPrev << ", min x curr: " << minXCurr << std::endl;
+
     // Compute and return TTC
     const double dT = 1.0 / frameRate;
-    const double TTC = minXCurr * dT / (minXPrev - minXCurr);
+    const double TTC = (minXCurr * dT) / (minXPrev - minXCurr);
+
+    std::cout << "TTC LIDAR: " << TTC << std::endl;
 
     return TTC;
 }
