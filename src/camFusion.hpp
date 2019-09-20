@@ -23,10 +23,9 @@ void matchBoundingBoxes(const std::vector<cv::DMatch> &matches,
 void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, cv::Size imageSize, bool bWait=true);
 
 double computeTTCCamera(const std::vector<cv::KeyPoint>& kptsPrev,
-                        const std::vector<cv::KeyPoint> &kptsCurr,
-                        const std::vector<cv::DMatch> kptMatches,
-                        const double frameRate,
-                        const cv::Mat* visImg=nullptr);
+                        const std::vector<cv::KeyPoint>& kptsCurr,
+                        const std::vector<cv::DMatch>& kptMatches,
+                        const double frameRate);
 
 double computeTTCLidar(const std::vector<LidarPoint>& lidarPointsPrev,
                        const std::vector<LidarPoint>& lidarPointsCurr,

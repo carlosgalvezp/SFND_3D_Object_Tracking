@@ -223,8 +223,7 @@ void clusterKptMatchesWithROI(const std::vector<cv::KeyPoint> &kptsPrev,  // tra
 double computeTTCCamera(const std::vector<cv::KeyPoint>& kptsPrev,
                         const std::vector<cv::KeyPoint>& kptsCurr,
                         const std::vector<cv::DMatch>& kptMatches,
-                        const double frameRate,
-                        const cv::Mat* visImg)
+                        const double frameRate)
 {
     // compute distance ratios between all matched keypoints
     std::vector<double> distRatios; // stores the distance ratios for all keypoints between curr. and prev. frame
@@ -289,10 +288,10 @@ double computeTTCLidar(const std::vector<LidarPoint>& lidarPointsPrev,
 }
 
 
-void matchBoundingBoxes(const std::vector<cv::DMatch> &matches,
-                        const DataFrame &prevFrame,
-                        const DataFrame &currFrame,
-                        std::map<int, int> &bbBestMatches)
+void matchBoundingBoxes(const std::vector<cv::DMatch>& matches,
+                        const DataFrame& prevFrame,
+                        const DataFrame& currFrame,
+                        std::map<int, int>& bbBestMatches)
 {
     // Prev frame = query
     // Curr frame = train
@@ -305,6 +304,7 @@ void matchBoundingBoxes(const std::vector<cv::DMatch> &matches,
         {
             for (const cv::DMatch& match : matches)
             {
+                // It's a match if both boxes contain the keypoint
                 if (prev_box.roi.contains(prevFrame.keypoints[match.queryIdx].pt) &&
                     curr_box.roi.contains(currFrame.keypoints[match.trainIdx].pt))
                 {

@@ -92,7 +92,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
         // load image from file
         cv::Mat img = cv::imread(imgFullFilename);
 
-        bVis = false;
+        bVis = true;
         if (bVis)
         {
             cv::imshow("Input camera image", img);
@@ -167,9 +167,6 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
         std::cout << "#4 : CLUSTER LIDAR POINT CLOUD done" << std::endl;
 
 
-        // REMOVE THIS LINE BEFORE PROCEEDING WITH THE FINAL PROJECT
-        continue; // skips directly to the next image without processing what comes beneath
-
         /* DETECT IMAGE KEYPOINTS */
 
         // convert current image to grayscale
@@ -213,7 +210,6 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
 
         std::cout << "#5 : DETECT KEYPOINTS done" << std::endl;
 
-
         /* EXTRACT KEYPOINT DESCRIPTORS */
 
         cv::Mat descriptors;
@@ -229,7 +225,6 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
             DataFrame& previous_frame = *(dataBuffer.end() - 2);
 
             /* MATCH KEYPOINT DESCRIPTORS */
-
             std::vector<cv::DMatch> matches;
 
             matchDescriptors(previous_frame.keypoints, current_frame.keypoints,
@@ -238,6 +233,27 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
 
             // store matches in current data frame
             current_frame.kptMatches = matches;
+
+            bVis = true;
+            if (bVis)
+            {
+                cv::Mat matchImg = current_frame.cameraImg.clone();
+                cv::drawMatches(previous_frame.cameraImg, previous_frame.keypoints,
+                                current_frame.cameraImg, current_frame.keypoints,
+                                matches, matchImg,
+                                cv::Scalar::all(-1), cv::Scalar::all(-1),
+                                std::vector<char>(), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
+
+                std::stringstream ss;
+                ss << "[" << detectorType << ", " << descriptorType << "] "
+                   << "Matching keypoints between two camera images";
+                std::string windowName = ss.str();
+                cv::namedWindow(windowName, 7);
+                cv::imshow(windowName, matchImg);
+                std::cout << "Press key to continue to next image" << std::endl;
+                cv::waitKey(0); // wait for key to be pressed
+            }
+            bVis = false;
 
             std::cout << "#7 : MATCH KEYPOINT DESCRIPTORS done" << std::endl;
 
@@ -253,7 +269,6 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
             current_frame.bbMatches = bbBestMatches;
 
             std::cout << "#8 : TRACK 3D OBJECT BOUNDING BOXES done" << std::endl;
-
 
             /* COMPUTE TTC ON OBJECT IN FRONT */
 
