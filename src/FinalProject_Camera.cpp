@@ -22,7 +22,7 @@
 
 
 /* MAIN PROGRAM */
-int main(int argc, const char *argv[])
+void runExperiment(const DetectorType detectorType, const DescriptorType descriptorType)
 {
     /* INIT VARIABLES AND DATA STRUCTURES */
 
@@ -74,8 +74,6 @@ int main(int argc, const char *argv[])
     bool bVis = false;            // visualize results
 
     // Camera-keypoint matching configuration
-    DetectorType detectorType = DetectorType::SHITOMASI;
-    DescriptorType descriptorType = DescriptorType::BRISK;
     MatcherType matcherType = MatcherType::BF;
     SelectorType selectorType = SelectorType::KNN;
 
@@ -314,6 +312,63 @@ int main(int argc, const char *argv[])
         }
 
     } // eof loop over all images
+}
+
+bool isValidExperiment(const DetectorType& detector_type, const DescriptorType& descriptor_type)
+{
+    // Cases documented not to work on UdacityHub
+    bool output = true;
+
+    if ((descriptor_type == DescriptorType::AKAZE) && (detector_type != DetectorType::AKAZE))
+    {
+        // AZAKE descriptor can only be used with KAZE or AKAZE keypoints
+        output = false;
+    }
+    else if ((detector_type == DetectorType::SIFT) && (descriptor_type == DescriptorType::ORB))
+    {
+        // out-of-memory errors with this combination
+        output = false;
+    }
+
+    return output;
+}
+
+/* MAIN PROGRAM */
+int main(int argc, const char *argv[])
+{
+    // Define experiments
+    const std::vector<DetectorType> detectors =
+    {
+        DetectorType::AKAZE,
+        DetectorType::BRISK,
+        DetectorType::FAST,
+        DetectorType::HARRIS,
+        DetectorType::ORB,
+        DetectorType::SHITOMASI,
+        DetectorType::SIFT,
+    };
+
+    const std::vector<DescriptorType> descriptors =
+    {
+        DescriptorType::BRISK,
+        DescriptorType::BRIEF,
+        DescriptorType::ORB,
+        DescriptorType::FREAK,
+        DescriptorType::AKAZE,
+        DescriptorType::SIFT
+    };
+
+    // Run all combinations
+    for (const DetectorType& detector_type : detectors)
+    {
+        for (const DescriptorType& descriptor_type : descriptors)
+        {
+            if (isValidExperiment(detector_type, descriptor_type))
+            {
+                runExperiment(detector_type, descriptor_type);
+            }
+        }
+    }
 
     return 0;
 }
