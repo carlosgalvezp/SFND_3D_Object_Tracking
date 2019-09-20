@@ -15,7 +15,7 @@
 #include <opencv2/xfeatures2d/nonfree.hpp>
 
 #include "dataStructures.h"
-#include "matching2D.hpp"
+#include "matching2D.h"
 #include "objectDetection2D.hpp"
 #include "lidarData.hpp"
 #include "camFusion.hpp"
@@ -73,9 +73,15 @@ int main(int argc, const char *argv[])
     std::vector<DataFrame> dataBuffer; // list of data frames which are held in memory at the same time
     bool bVis = false;            // visualize results
 
+    // Camera-keypoint matching configuration
+    DetectorType detectorType = DetectorType::SHITOMASI;
+    DescriptorType descriptorType = DescriptorType::BRISK;
+    MatcherType matcherType = MatcherType::BF;
+    SelectorType selectorType = SelectorType::KNN;
+
     /* MAIN LOOP OVER ALL IMAGES */
 
-    for (size_t imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex+=imgStepWidth)
+    for (std::size_t imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex+=imgStepWidth)
     {
         /* LOAD IMAGE INTO BUFFER */
 
@@ -90,7 +96,22 @@ int main(int argc, const char *argv[])
         // push image into data frame buffer
         DataFrame frame;
         frame.cameraImg = img;
-        dataBuffer.push_back(frame);
+
+        if (dataBuffer.size() < dataBufferSize)  // If the buffer is not yet full, simply push back
+        {
+            dataBuffer.push_back(frame);
+        }
+        else  // Otherwise shift data and place new frame in the back
+        {
+            // Shift contents in ring buffer
+            for (std::size_t i = 1U; i < dataBuffer.size(); ++i)
+            {
+                dataBuffer[i - 1U] = dataBuffer[i];
+            }
+
+            // Add new image to the back
+            dataBuffer.back() = frame;
+        }
 
         std::cout << "#1 : LOAD IMAGE INTO BUFFER done" << std::endl;
 
@@ -149,16 +170,21 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         std::vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        std::string detectorType = "SHITOMASI";
 
-        if (detectorType.compare("SHITOMASI") == 0)
+        bVis = false;
+        if (detectorType == DetectorType::SHITOMASI)
         {
-            detKeypointsShiTomasi(keypoints, imgGray, false);
+            detKeypointsShiTomasi(keypoints, imgGray, bVis);
+        }
+        else if (detectorType == DetectorType::HARRIS)
+        {
+            detKeypointsHarris(keypoints, imgGray, bVis);
         }
         else
         {
-            //...
+            detKeypointsModern(keypoints, imgGray, detectorType, bVis);
         }
+        bVis = false;
 
         // optional : limit number of keypoints (helpful for debugging and learning)
         bool bLimitKpts = false;
@@ -166,7 +192,7 @@ int main(int argc, const char *argv[])
         {
             int maxKeypoints = 50;
 
-            if (detectorType.compare("SHITOMASI") == 0)
+            if (detectorType == DetectorType::SHITOMASI)
             { // there is no response info, so keep the first 50 as they are sorted in descending quality order
                 keypoints.erase(keypoints.begin() + maxKeypoints, keypoints.end());
             }
@@ -175,7 +201,7 @@ int main(int argc, const char *argv[])
         }
 
         // push keypoints and descriptor for current frame to end of data buffer
-        (dataBuffer.end() - 1)->keypoints = keypoints;
+        dataBuffer.back().keypoints = keypoints;
 
         std::cout << "#5 : DETECT KEYPOINTS done" << std::endl;
 
@@ -183,34 +209,27 @@ int main(int argc, const char *argv[])
         /* EXTRACT KEYPOINT DESCRIPTORS */
 
         cv::Mat descriptors;
-        std::string descriptorType = "BRISK"; // BRISK, BRIEF, ORB, FREAK, AKAZE, SIFT
-        descKeypoints((dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->cameraImg, descriptors, descriptorType);
+        descKeypoints(dataBuffer.back().keypoints, dataBuffer.back().cameraImg, descriptors, descriptorType);
 
         // push descriptors for current frame to end of data buffer
-        (dataBuffer.end() - 1)->descriptors = descriptors;
+        dataBuffer.back().descriptors = descriptors;
 
         std::cout << "#6 : EXTRACT DESCRIPTORS done" << std::endl;
 
-
         if (dataBuffer.size() > 1) // wait until at least two images have been processed
         {
-
             /* MATCH KEYPOINT DESCRIPTORS */
 
             std::vector<cv::DMatch> matches;
-            std::string matcherType = "MAT_BF";        // MAT_BF, MAT_FLANN
-            std::string descriptorType = "DES_BINARY"; // DES_BINARY, DES_HOG
-            std::string selectorType = "SEL_NN";       // SEL_NN, SEL_KNN
 
             matchDescriptors((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints,
                              (dataBuffer.end() - 2)->descriptors, (dataBuffer.end() - 1)->descriptors,
                              matches, descriptorType, matcherType, selectorType);
 
             // store matches in current data frame
-            (dataBuffer.end() - 1)->kptMatches = matches;
+            dataBuffer.back().kptMatches = matches;
 
             std::cout << "#7 : MATCH KEYPOINT DESCRIPTORS done" << std::endl;
-
 
             /* TRACK 3D OBJECT BOUNDING BOXES */
 
