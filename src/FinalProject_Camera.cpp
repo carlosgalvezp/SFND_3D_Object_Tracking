@@ -24,8 +24,11 @@
 /* MAIN PROGRAM */
 void runExperiment(const DetectorType detectorType, const DescriptorType descriptorType)
 {
-    /* INIT VARIABLES AND DATA STRUCTURES */
+    std::cout << "=======================================================" << std::endl;
+    std::cout << "Experiment: " << detectorType << " + " << descriptorType << std::endl;
+    std::cout << "=======================================================" << std::endl;
 
+    /* INIT VARIABLES AND DATA STRUCTURES */
     // data location
     std::string dataPath = "../";
 
@@ -78,11 +81,9 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
     SelectorType selectorType = SelectorType::KNN;
 
     /* MAIN LOOP OVER ALL IMAGES */
-
     for (std::size_t imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex+=imgStepWidth)
     {
         /* LOAD IMAGE INTO BUFFER */
-
         // assemble filenames for current index
         std::ostringstream imgNumber;
         imgNumber << std::setfill('0') << std::setw(imgFillWidth) << imgStartIndex + imgIndex;
@@ -90,6 +91,14 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
 
         // load image from file
         cv::Mat img = cv::imread(imgFullFilename);
+
+        bVis = false;
+        if (bVis)
+        {
+            cv::imshow("Input camera image", img);
+            cv::waitKey(0);
+        }
+        bVis = false;
 
         // push image into data frame buffer
         DataFrame frame;
@@ -113,16 +122,17 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
 
         std::cout << "#1 : LOAD IMAGE INTO BUFFER done" << std::endl;
 
+        DataFrame& current_frame = dataBuffer.back();
 
         /* DETECT & CLASSIFY OBJECTS */
 
         float confThreshold = 0.2;
         float nmsThreshold = 0.4;
-        detectObjects(dataBuffer.back().cameraImg, dataBuffer.back().boundingBoxes, confThreshold, nmsThreshold,
+        detectObjects(current_frame.cameraImg, current_frame.boundingBoxes, confThreshold, nmsThreshold,
                       yoloBasePath, yoloClassesFile, yoloModelConfiguration, yoloModelWeights, bVis);
 
         std::cout << "#2 : DETECT & CLASSIFY OBJECTS done" << std::endl;
-
+        std::cout << "Found " << current_frame.boundingBoxes.size() << std::endl;
 
         /* CROP LIDAR POINTS */
 
@@ -135,7 +145,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
         float minZ = -1.5, maxZ = -0.9, minX = 2.0, maxX = 20.0, maxY = 2.0, minR = 0.1; // focus on ego lane
         cropLidarPoints(lidarPoints, minX, maxX, maxY, minZ, maxZ, minR);
 
-        dataBuffer.back().lidarPoints = lidarPoints;
+        current_frame.lidarPoints = lidarPoints;
 
         std::cout << "#3 : CROP LIDAR POINTS done" << std::endl;
 
@@ -144,13 +154,13 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
 
         // associate Lidar points with camera-based ROI
         float shrinkFactor = 0.10; // shrinks each bounding box by the given percentage to avoid 3D object merging at the edges of an ROI
-        clusterLidarWithROI(dataBuffer.back().boundingBoxes, dataBuffer.back().lidarPoints, shrinkFactor, P_rect_00, R_rect_00, RT);
+        clusterLidarWithROI(current_frame.boundingBoxes, current_frame.lidarPoints, shrinkFactor, P_rect_00, R_rect_00, RT);
 
         // Visualize 3D objects
         bVis = true;
         if(bVis)
         {
-            show3DObjects(dataBuffer.back().boundingBoxes, cv::Size(4.0, 20.0), cv::Size(2000, 2000), true);
+            show3DObjects(current_frame.boundingBoxes, cv::Size(4.0, 20.0), cv::Size(2000, 2000), true);
         }
         bVis = false;
 
@@ -164,7 +174,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
 
         // convert current image to grayscale
         cv::Mat imgGray;
-        cv::cvtColor(dataBuffer.back().cameraImg, imgGray, cv::COLOR_BGR2GRAY);
+        cv::cvtColor(current_frame.cameraImg, imgGray, cv::COLOR_BGR2GRAY);
 
         // extract 2D keypoints from current image
         std::vector<cv::KeyPoint> keypoints; // create empty feature list for current image
@@ -199,7 +209,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
         }
 
         // push keypoints and descriptor for current frame to end of data buffer
-        dataBuffer.back().keypoints = keypoints;
+        current_frame.keypoints = keypoints;
 
         std::cout << "#5 : DETECT KEYPOINTS done" << std::endl;
 
@@ -207,25 +217,27 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
         /* EXTRACT KEYPOINT DESCRIPTORS */
 
         cv::Mat descriptors;
-        descKeypoints(dataBuffer.back().keypoints, dataBuffer.back().cameraImg, descriptors, descriptorType);
+        descKeypoints(current_frame.keypoints, current_frame.cameraImg, descriptors, descriptorType);
 
         // push descriptors for current frame to end of data buffer
-        dataBuffer.back().descriptors = descriptors;
+        current_frame.descriptors = descriptors;
 
         std::cout << "#6 : EXTRACT DESCRIPTORS done" << std::endl;
 
         if (dataBuffer.size() > 1) // wait until at least two images have been processed
         {
+            DataFrame& previous_frame = *(dataBuffer.end() - 2);
+
             /* MATCH KEYPOINT DESCRIPTORS */
 
             std::vector<cv::DMatch> matches;
 
-            matchDescriptors((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints,
-                             (dataBuffer.end() - 2)->descriptors, (dataBuffer.end() - 1)->descriptors,
+            matchDescriptors(previous_frame.keypoints, current_frame.keypoints,
+                             previous_frame.descriptors, current_frame.descriptors,
                              matches, descriptorType, matcherType, selectorType);
 
             // store matches in current data frame
-            dataBuffer.back().kptMatches = matches;
+            current_frame.kptMatches = matches;
 
             std::cout << "#7 : MATCH KEYPOINT DESCRIPTORS done" << std::endl;
 
@@ -234,11 +246,11 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
             //// STUDENT ASSIGNMENT
             //// TASK FP.1 -> match list of 3D objects (std::vector<BoundingBox>) between current and previous frame (implement ->matchBoundingBoxes)
             std::map<int, int> bbBestMatches;
-            matchBoundingBoxes(matches, *(dataBuffer.end()-2), *(dataBuffer.end()-1), bbBestMatches); // associate bounding boxes between current and previous frame using keypoint matches
+            matchBoundingBoxes(matches, previous_frame, current_frame, bbBestMatches); // associate bounding boxes between current and previous frame using keypoint matches
             //// EOF STUDENT ASSIGNMENT
 
             // store matches in current data frame
-            dataBuffer.back().bbMatches = bbBestMatches;
+            current_frame.bbMatches = bbBestMatches;
 
             std::cout << "#8 : TRACK 3D OBJECT BOUNDING BOXES done" << std::endl;
 
@@ -246,11 +258,11 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
             /* COMPUTE TTC ON OBJECT IN FRONT */
 
             // loop over all BB match pairs
-            for (auto it1 = (dataBuffer.end() - 1)->bbMatches.begin(); it1 != (dataBuffer.end() - 1)->bbMatches.end(); ++it1)
+            for (auto it1 = current_frame.bbMatches.begin(); it1 != current_frame.bbMatches.end(); ++it1)
             {
                 // find bounding boxes associates with current match
                 BoundingBox *prevBB, *currBB;
-                for (auto it2 = (dataBuffer.end() - 1)->boundingBoxes.begin(); it2 != (dataBuffer.end() - 1)->boundingBoxes.end(); ++it2)
+                for (auto it2 = current_frame.boundingBoxes.begin(); it2 != current_frame.boundingBoxes.end(); ++it2)
                 {
                     if (it1->second == it2->boxID) // check wether current match partner corresponds to this BB
                     {
@@ -258,7 +270,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
                     }
                 }
 
-                for (auto it2 = (dataBuffer.end() - 2)->boundingBoxes.begin(); it2 != (dataBuffer.end() - 2)->boundingBoxes.end(); ++it2)
+                for (auto it2 = previous_frame.boundingBoxes.begin(); it2 != previous_frame.boundingBoxes.end(); ++it2)
                 {
                     if (it1->first == it2->boxID) // check wether current match partner corresponds to this BB
                     {
@@ -277,12 +289,12 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
                     //// STUDENT ASSIGNMENT
                     //// TASK FP.3 -> assign enclosed keypoint matches to bounding box (implement -> clusterKptMatchesWithROI)
                     //// TASK FP.4 -> compute time-to-collision based on camera (implement -> computeTTCCamera)
-                    clusterKptMatchesWithROI((dataBuffer.end() - 2)->keypoints,
-                                             (dataBuffer.end() - 1)->keypoints,
-                                             (dataBuffer.end() - 1)->kptMatches,
+                    clusterKptMatchesWithROI(previous_frame.keypoints,
+                                             current_frame.keypoints,
+                                             current_frame.kptMatches,
                                              *currBB);
-                    double ttcCamera = computeTTCCamera((dataBuffer.end() - 2)->keypoints,
-                                                        (dataBuffer.end() - 1)->keypoints,
+                    double ttcCamera = computeTTCCamera(previous_frame.keypoints,
+                                                        current_frame.keypoints,
                                                         currBB->kptMatches,
                                                         sensorFrameRate);
                     //// EOF STUDENT ASSIGNMENT
@@ -290,7 +302,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
                     bVis = true;
                     if (bVis)
                     {
-                        cv::Mat visImg = (dataBuffer.end() - 1)->cameraImg.clone();
+                        cv::Mat visImg = current_frame.cameraImg.clone();
                         showLidarImgOverlay(visImg, currBB->lidarPoints, P_rect_00, R_rect_00, RT, &visImg);
                         cv::rectangle(visImg, cv::Point(currBB->roi.x, currBB->roi.y), cv::Point(currBB->roi.x + currBB->roi.width, currBB->roi.y + currBB->roi.height), cv::Scalar(0, 255, 0), 2);
 
@@ -327,6 +339,11 @@ bool isValidExperiment(const DetectorType& detector_type, const DescriptorType& 
     else if ((detector_type == DetectorType::SIFT) && (descriptor_type == DescriptorType::ORB))
     {
         // out-of-memory errors with this combination
+        output = false;
+    }
+
+    if (detector_type != DetectorType::FAST || descriptor_type != DescriptorType::ORB)
+    {
         output = false;
     }
 
