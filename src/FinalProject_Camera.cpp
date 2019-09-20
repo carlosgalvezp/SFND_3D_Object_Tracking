@@ -273,16 +273,20 @@ int main(int argc, const char *argv[])
                 {
                     //// STUDENT ASSIGNMENT
                     //// TASK FP.2 -> compute time-to-collision based on Lidar data (implement -> computeTTCLidar)
-                    double ttcLidar;
-                    computeTTCLidar(prevBB->lidarPoints, currBB->lidarPoints, sensorFrameRate, ttcLidar);
+                    double ttcLidar = computeTTCLidar(prevBB->lidarPoints, currBB->lidarPoints, sensorFrameRate);
                     //// EOF STUDENT ASSIGNMENT
 
                     //// STUDENT ASSIGNMENT
                     //// TASK FP.3 -> assign enclosed keypoint matches to bounding box (implement -> clusterKptMatchesWithROI)
                     //// TASK FP.4 -> compute time-to-collision based on camera (implement -> computeTTCCamera)
-                    double ttcCamera;
-                    clusterKptMatchesWithROI(*currBB, (dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, (dataBuffer.end() - 1)->kptMatches);
-                    computeTTCCamera((dataBuffer.end() - 2)->keypoints, (dataBuffer.end() - 1)->keypoints, currBB->kptMatches, sensorFrameRate, ttcCamera);
+                    clusterKptMatchesWithROI((dataBuffer.end() - 2)->keypoints,
+                                             (dataBuffer.end() - 1)->keypoints,
+                                             (dataBuffer.end() - 1)->kptMatches,
+                                             *currBB);
+                    double ttcCamera = computeTTCCamera((dataBuffer.end() - 2)->keypoints,
+                                                        (dataBuffer.end() - 1)->keypoints,
+                                                        currBB->kptMatches,
+                                                        sensorFrameRate);
                     //// EOF STUDENT ASSIGNMENT
 
                     bVis = true;

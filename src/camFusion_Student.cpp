@@ -51,6 +51,26 @@ double findClosestLidarPointInLane(const std::vector<LidarPoint>& lidar_points)
     return min_x;
 }
 
+template<typename T>
+double median(std::vector<T>& data)
+{
+    std::sort(data.begin(), data.end());
+    T output{};
+
+    const std::size_t size = data.size();
+
+    if ((size % 2U) == 0U)
+    {
+        output = static_cast<T>(0.5) * (data[(size / 2U) - 1U] + data[size / 2U]);
+    }
+    else
+    {
+        output = data[size / 2U];
+    }
+
+    return output;
+}
+
 }  // namespace
 
 
@@ -174,30 +194,46 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 
 
 // associate a given bounding box with the keypoints it contains
-void clusterKptMatchesWithROI(const BoundingBox &boundingBox,
-                              const std::vector<cv::KeyPoint> &kptsPrev,
-                              const std::vector<cv::KeyPoint> &kptsCurr,
-                              std::vector<cv::DMatch> &kptMatches)
+void clusterKptMatchesWithROI(const std::vector<cv::KeyPoint> &kptsPrev,  // train
+                              const std::vector<cv::KeyPoint> &kptsCurr,  // query
+                              const std::vector<cv::DMatch> &kptMatches,
+                              BoundingBox &boundingBoxCurr)
 {
-    // ...
-}
+    // First, compute median (robust) of distance between descriptors to filter out later
+    std::vector<float> match_distances;
+    for (const cv::DMatch& match : kptMatches)
+    {
+        match_distances.push_back(match.distance);
+    }
+    const float median_match_distance = median(match_distances);
 
+    // Loop over matches and assign to bounding box if points are contained
+    for (const cv::DMatch& match : kptMatches)
+    {
+        if (((match.distance > 0.5 * median_match_distance) ||
+             (match.distance < 1.5 * median_match_distance)) &&
+            boundingBoxCurr.roi.contains(kptsCurr[match.queryIdx].pt))
+        {
+            boundingBoxCurr.kptMatches.push_back(match);
+        }
+    }
+}
 
 // Compute time-to-collision (TTC) based on keypoint correspondences in successive images
-void computeTTCCamera(const std::vector<cv::KeyPoint>& kptsPrev,
-                      const std::vector<cv::KeyPoint>& kptsCurr,
-                      const std::vector<cv::DMatch>& kptMatches,
-                      const double frameRate,
-                      double &TTC, const cv::Mat* visImg)
+double computeTTCCamera(const std::vector<cv::KeyPoint>& kptsPrev,
+                        const std::vector<cv::KeyPoint>& kptsCurr,
+                        const std::vector<cv::DMatch>& kptMatches,
+                        const double frameRate,
+                        const cv::Mat* visImg)
 {
     // ...
+    return 0.0;
 }
 
 
-void computeTTCLidar(const std::vector<LidarPoint>& lidarPointsPrev,
-                     const std::vector<LidarPoint>& lidarPointsCurr,
-                     const double frameRate,
-                     double& TTC)
+double computeTTCLidar(const std::vector<LidarPoint>& lidarPointsPrev,
+                       const std::vector<LidarPoint>& lidarPointsCurr,
+                       const double frameRate)
 {
     // Find closest lidar point in front of the car, for both previous and current frame
     const double minXPrev = findClosestLidarPointInLane(lidarPointsPrev);
@@ -205,7 +241,9 @@ void computeTTCLidar(const std::vector<LidarPoint>& lidarPointsPrev,
 
     // Compute and return TTC
     const double dT = 1.0 / frameRate;
-    TTC = minXCurr * dT / (minXPrev - minXCurr);
+    const double TTC = minXCurr * dT / (minXPrev - minXCurr);
+
+    return TTC;
 }
 
 
