@@ -226,8 +226,50 @@ double computeTTCCamera(const std::vector<cv::KeyPoint>& kptsPrev,
                         const double frameRate,
                         const cv::Mat* visImg)
 {
-    // ...
-    return 0.0;
+    // compute distance ratios between all matched keypoints
+    std::vector<double> distRatios; // stores the distance ratios for all keypoints between curr. and prev. frame
+    for (const cv::DMatch& match1 : kptMatches)
+    {
+        // get current keypoint and its matched partner in the prev. frame
+        const cv::KeyPoint& kpOuterCurr = kptsCurr[match1.trainIdx];
+        const cv::KeyPoint& kpOuterPrev = kptsPrev[match1.queryIdx];
+
+        for (const cv::DMatch& match2 : kptMatches)
+        {
+            double minDist = 100.0; // min. required distance
+
+            // get next keypoint and its matched partner in the prev. frame
+            cv::KeyPoint kpInnerCurr = kptsCurr.at(match2.trainIdx);
+            cv::KeyPoint kpInnerPrev = kptsPrev.at(match2.queryIdx);
+
+            // compute distances and distance ratios
+            double distCurr = cv::norm(kpOuterCurr.pt - kpInnerCurr.pt);
+            double distPrev = cv::norm(kpOuterPrev.pt - kpInnerPrev.pt);
+
+            if (distPrev > std::numeric_limits<double>::epsilon() && distCurr >= minDist)
+            { // avoid division by zero
+
+                double distRatio = distCurr / distPrev;
+                distRatios.push_back(distRatio);
+            }
+        }
+    }
+
+    // only continue if list of distance ratios is not empty
+    double TTC;
+    if (distRatios.size() == 0)
+    {
+        TTC = NAN;
+    }
+    else
+    {
+        // compute camera-based TTC from distance ratios
+        double medianDistRatio = median(distRatios);
+
+        double dT = 1 / frameRate;
+        TTC = -dT / (1 - medianDistRatio);
+    }
+    return TTC;
 }
 
 
