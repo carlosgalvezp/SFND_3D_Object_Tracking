@@ -8,7 +8,50 @@
 #include "camFusion.hpp"
 #include "dataStructures.h"
 
-using namespace std;
+namespace
+{
+
+double distance(const LidarPoint& a, const LidarPoint& b)
+{
+    return std::sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
+}
+
+double findClosestLidarPointInLane(const std::vector<LidarPoint>& lidar_points)
+{
+    // Filtering parameters
+    const double lane_width = 4.0;
+    const int min_n_neighbors = 5;
+    const double max_neighbor_distance = 0.1;
+
+    // Output
+    double min_x = std::numeric_limits<double>::max();
+
+    for (const LidarPoint& point : lidar_points)
+    {
+        if ((point.x < min_x) && (std::fabs(point.y) < 0.5 * lane_width))
+        {
+            int n_neighbors = 0;
+            for (const LidarPoint& neighbor : lidar_points)
+            {
+                if (distance(point, neighbor) < max_neighbor_distance)
+                {
+                    ++n_neighbors;
+                }
+
+                // Found a point with a small distance and close enough neighbors
+                if (n_neighbors == min_n_neighbors)
+                {
+                    min_x = point.x;
+                    break;
+                }
+            }
+        }
+    }
+
+    return min_x;
+}
+
+}  // namespace
 
 
 // Create groups of Lidar points whose projection into the camera falls into the same bounding box
@@ -32,8 +75,8 @@ void clusterLidarWithROI(std::vector<BoundingBox> &boundingBoxes, std::vector<Li
         pt.x = Y.at<double>(0, 0) / Y.at<double>(0, 2); // pixel coordinates
         pt.y = Y.at<double>(1, 0) / Y.at<double>(0, 2);
 
-        vector<vector<BoundingBox>::iterator> enclosingBoxes; // pointers to all bounding boxes which enclose the current Lidar point
-        for (vector<BoundingBox>::iterator it2 = boundingBoxes.begin(); it2 != boundingBoxes.end(); ++it2)
+        std::vector<std::vector<BoundingBox>::iterator> enclosingBoxes; // pointers to all bounding boxes which enclose the current Lidar point
+        for (std::vector<BoundingBox>::iterator it2 = boundingBoxes.begin(); it2 != boundingBoxes.end(); ++it2)
         {
             // shrink current bounding box slightly to avoid having too many outlier points around the edges
             cv::Rect smallerBox;
@@ -119,7 +162,7 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
     }
 
     // display image
-    string windowName = "3D Objects";
+    std::string windowName = "3D Objects";
     cv::namedWindow(windowName, 1);
     cv::imshow(windowName, topviewImg);
 
@@ -131,24 +174,38 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 
 
 // associate a given bounding box with the keypoints it contains
-void clusterKptMatchesWithROI(BoundingBox &boundingBox, std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr, std::vector<cv::DMatch> &kptMatches)
+void clusterKptMatchesWithROI(const BoundingBox &boundingBox,
+                              const std::vector<cv::KeyPoint> &kptsPrev,
+                              const std::vector<cv::KeyPoint> &kptsCurr,
+                              std::vector<cv::DMatch> &kptMatches)
 {
     // ...
 }
 
 
 // Compute time-to-collision (TTC) based on keypoint correspondences in successive images
-void computeTTCCamera(std::vector<cv::KeyPoint> &kptsPrev, std::vector<cv::KeyPoint> &kptsCurr,
-                      std::vector<cv::DMatch> kptMatches, double frameRate, double &TTC, cv::Mat *visImg)
+void computeTTCCamera(const std::vector<cv::KeyPoint>& kptsPrev,
+                      const std::vector<cv::KeyPoint>& kptsCurr,
+                      const std::vector<cv::DMatch>& kptMatches,
+                      const double frameRate,
+                      double &TTC, const cv::Mat* visImg)
 {
     // ...
 }
 
 
-void computeTTCLidar(std::vector<LidarPoint> &lidarPointsPrev,
-                     std::vector<LidarPoint> &lidarPointsCurr, double frameRate, double &TTC)
+void computeTTCLidar(const std::vector<LidarPoint>& lidarPointsPrev,
+                     const std::vector<LidarPoint>& lidarPointsCurr,
+                     const double frameRate,
+                     double& TTC)
 {
-    // ...
+    // Find closest lidar point in front of the car, for both previous and current frame
+    const double minXPrev = findClosestLidarPointInLane(lidarPointsPrev);
+    const double minXCurr = findClosestLidarPointInLane(lidarPointsCurr);
+
+    // Compute and return TTC
+    const double dT = 1.0 / frameRate;
+    TTC = minXCurr * dT / (minXPrev - minXCurr);
 }
 
 
