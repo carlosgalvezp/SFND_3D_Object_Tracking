@@ -4,8 +4,9 @@ Sensor Fusion Nanodegree - 3D Object Tracking Project
 In this document we summarize the work done for the 3D Object Tracking Project,
 specifying how the different points in the rubric are fulfilled.
 
+![](images/report/final_output.png)
 
-FP.0 Mid-Term Report
+FP.0 Final Report
 --------------------
 ```
 Provide a Writeup / README that includes all the rubric points and how you
@@ -22,9 +23,34 @@ and the current data frames and provides as output the ids of the matched region
 of interest (i.e. the boxID property). Matches must be the ones with the highest
 number of keypoint correspondences.
 ```
-TODO
 
-FP.2 Comput Lidar-based TTC
+The method `matchBoundingBoxes` is implemented in `camFusion_Student.cpp`.
+A high-level description of the process is as follows:
+
+0. Create a data structure `BoxIdxPair` that contains 3 elements:
+
+   - The `boxID` of a bounding box in the previous frame.
+   - The `boxID` of a bounding box in the current frame.
+   - The number of keypoint matches between those two boxes.
+
+1. Create a vector of `BoxIdxPair` (`box_matches` in the code) to store
+   the number of valid matches for every previous-current box pair combination.
+
+2. Go through all the input `kptMatches`. Go through all previous and current
+   boxes. If a given combination of boxes contains the matched keypoints,
+   increase a counter for that box pair. The result is that every combination
+   of pairs of bounding boxes between previous and current frame have
+   associated a number of keypoint matches.
+
+2. Sort the vector `box_matches` according to the number of keypoint matches
+   (the pairs with more keypoints go first).
+
+3. Loop over the sorted vector and extract the pairs with higher number
+   of correspondences, storing the output in `bbBestMatches`.
+   Keep track of which boxes have already been assigned to ensure a 1:1 mapping.
+
+
+FP.2 Compute Lidar-based TTC
 ---------------------------
 ```
 Compute the time-to-collision in second for all matched 3D objects using only Lidar
