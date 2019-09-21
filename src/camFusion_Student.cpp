@@ -285,8 +285,8 @@ double computeTTCCamera(const std::vector<cv::KeyPoint>& kptsPrev,
         // compute camera-based TTC from distance ratios
         double medianDistRatio = median(distRatios);
 
-        double dT = 1 / frameRate;
-        TTC = -dT / (1 - medianDistRatio);
+        double dT = 1.0 / frameRate;
+        TTC = -dT / (1.0 - medianDistRatio);
     }
     return TTC;
 }
