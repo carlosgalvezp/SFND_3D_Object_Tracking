@@ -56,7 +56,79 @@ FP.2 Compute Lidar-based TTC
 Compute the time-to-collision in second for all matched 3D objects using only Lidar
 measurements from the matched bounding boxes between current and previous frame.
 ```
-TODO
+
+This is implemented in the function `computeTTCLidar`, following the theory
+given in the lectures:
+
+```cpp
+double computeTTCLidar(const std::vector<LidarPoint>& lidarPointsPrev,
+                       const std::vector<LidarPoint>& lidarPointsCurr,
+                       const double frameRate)
+{
+    // Find closest lidar point in front of the car, for both previous and current frame
+    const double minXPrev = findClosestLidarPointInLane(lidarPointsPrev);
+    const double minXCurr = findClosestLidarPointInLane(lidarPointsCurr);
+
+    // Compute and return TTC
+    const double dT = 1.0 / frameRate;
+    const double TTC = (minXCurr * dT) / (minXPrev - minXCurr);
+
+    return TTC;
+}
+```
+
+We compute the closest lidar point in the ego lane, for both the previous
+and current frame, and compute the TTC using that and the sensor frame rate.
+Since the lidar points have already been filtered out to be in the ego
+lane we don't need to care about that here.
+
+However we do need to extract the closest point reliably, being robust against
+sporious points that might end up between the ego lane and the actual
+preceeding vehicle.
+
+To do this, we implemented a helper function `findClosestLidarPointInLane`,
+as follows:
+
+```cpp
+double findClosestLidarPointInLane(const std::vector<LidarPoint>& lidar_points)
+{
+    // Create a vector of x distances and sort them
+    std::vector<double> x_distances;
+    for (const LidarPoint& point : lidar_points)
+    {
+        x_distances.push_back(point.x);
+    }
+
+    std::sort(x_distances.begin(), x_distances.end());
+
+    // Take the N closest points
+    const std::size_t kNumberClosestPoints = 10U;
+    std::vector<float> closest_x_distances(kNumberClosestPoints);
+    std::copy(x_distances.begin(), x_distances.begin() + kNumberClosestPoints, closest_x_distances.begin());
+
+    // Compute median to remove outliers
+    return median(closest_x_distances);
+}
+```
+
+The process is quite straightforward:
+
+1. Create a vector to store the `x` component of all lidar points, which
+   correspond to the distance to the preceeding vehicle.
+2. Sort them to keep the closest points first.
+3. Take the first `N` (in this case, `N = 10`) points from the sorted
+   vector and store it (`closest_x_distances`). These points should contain
+   mostly real points belonging to the rear of the preceeding vehicle,
+   (which should have a similar value of distance),
+   plus possibly a few outliers.
+4. Finally, compute the estimate of distance to the preceeding vehicle
+   by taking the `median` over `closest_x_distances`, which should be
+   robust against possible outliers and return the true distance to the
+   preceeding car.
+
+Of course every lidar point (spurious or not) will have associated some
+measurement error since the sensor is not perfect, but this is the best
+estimate we can obtain with the data we have.
 
 FP.3 Associate Keypoint Correspondences with Bounding Boxes
 -----------------------------------------------------------
