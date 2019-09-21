@@ -22,7 +22,7 @@
 
 
 /* MAIN PROGRAM */
-void runExperiment(const DetectorType detectorType, const DescriptorType descriptorType)
+std::vector<double> runExperiment(const DetectorType detectorType, const DescriptorType descriptorType)
 {
     std::cout << "=======================================================" << std::endl;
     std::cout << "Experiment: " << detectorType << " + " << descriptorType << std::endl;
@@ -79,6 +79,9 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
     // Camera-keypoint matching configuration
     MatcherType matcherType = MatcherType::BF;
     SelectorType selectorType = SelectorType::KNN;
+
+    // Output data
+    std::vector<double> all_ttc_camera;
 
     /* MAIN LOOP OVER ALL IMAGES */
     for (std::size_t imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex+=imgStepWidth)
@@ -159,7 +162,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
         clusterLidarWithROI(current_frame.boundingBoxes, current_frame.lidarPoints, shrinkFactor, P_rect_00, R_rect_00, RT);
 
         // Visualize 3D objects
-        bVis = true;
+        bVis = false;
         if(bVis)
         {
             show3DObjects(current_frame.boundingBoxes, cv::Size(4.0, 20.0), cv::Size(2000, 2000), true);
@@ -225,6 +228,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
         if (dataBuffer.size() > 1) // wait until at least two images have been processed
         {
             DataFrame& previous_frame = *(dataBuffer.end() - 2);
+            double ttcCamera = NAN;
 
             /* MATCH KEYPOINT DESCRIPTORS */
             std::vector<cv::DMatch> matches;
@@ -312,13 +316,13 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
                                              current_frame.keypoints,
                                              current_frame.kptMatches,
                                              *currBB);
-                    double ttcCamera = computeTTCCamera(previous_frame.keypoints,
-                                                        current_frame.keypoints,
-                                                        currBB->kptMatches,
-                                                        sensorFrameRate);
+                    ttcCamera = computeTTCCamera(previous_frame.keypoints,
+                                                 current_frame.keypoints,
+                                                 currBB->kptMatches,
+                                                 sensorFrameRate);
                     //// EOF STUDENT ASSIGNMENT
 
-                    bVis = true;
+                    bVis = false;
                     if (bVis)
                     {
                         cv::Mat visImg = current_frame.cameraImg.clone();
@@ -340,9 +344,11 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
                 } // eof TTC computation
             } // eof loop over all BB matches
 
-        }
-
+            all_ttc_camera.push_back(ttcCamera);
+        } // eof if data.size() > 1
     } // eof loop over all images
+
+    return all_ttc_camera;
 }
 
 bool isValidExperiment(const DetectorType& detector_type, const DescriptorType& descriptor_type)
@@ -358,11 +364,6 @@ bool isValidExperiment(const DetectorType& detector_type, const DescriptorType& 
     else if ((detector_type == DetectorType::SIFT) && (descriptor_type == DescriptorType::ORB))
     {
         // out-of-memory errors with this combination
-        output = false;
-    }
-
-    if (detector_type != DetectorType::FAST || descriptor_type != DescriptorType::ORB)
-    {
         output = false;
     }
 
@@ -394,6 +395,8 @@ int main(int argc, const char *argv[])
         DescriptorType::SIFT
     };
 
+    std::vector<std::vector<double>> ttcs_camera;
+
     // Run all combinations
     for (const DetectorType& detector_type : detectors)
     {
@@ -401,9 +404,30 @@ int main(int argc, const char *argv[])
         {
             if (isValidExperiment(detector_type, descriptor_type))
             {
-                runExperiment(detector_type, descriptor_type);
+                ttcs_camera.push_back(runExperiment(detector_type, descriptor_type));
+            }
+            else
+            {
+                ttcs_camera.push_back(std::vector<double>(ttcs_camera.front().size(), NAN));
             }
         }
+    }
+
+    // Print data to copy-paste into spreadsheet
+    for (const auto& ttc_data : ttcs_camera)
+    {
+        for (const double ttc_frame_i : ttc_data)
+        {
+            if (!std::isnan(ttc_frame_i) && ttc_frame_i > 0 && ttc_frame_i < 25)
+            {
+                std::cout << ttc_frame_i << ", ";
+            }
+            else
+            {
+                std::cout << "nan" << ", ";
+            }
+        }
+        std::cout << std::endl;
     }
 
     return 0;
