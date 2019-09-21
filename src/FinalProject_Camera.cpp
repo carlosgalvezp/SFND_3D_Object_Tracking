@@ -162,7 +162,7 @@ std::vector<double> runExperiment(const DetectorType detectorType, const Descrip
         clusterLidarWithROI(current_frame.boundingBoxes, current_frame.lidarPoints, shrinkFactor, P_rect_00, R_rect_00, RT);
 
         // Visualize 3D objects
-        bVis = false;
+        bVis = true;
         if(bVis)
         {
             show3DObjects(current_frame.boundingBoxes, cv::Size(4.0, 20.0), cv::Size(2000, 2000), true);
@@ -367,7 +367,7 @@ bool isValidExperiment(const DetectorType& detector_type, const DescriptorType& 
         output = false;
     }
 
-    if (detector_type != DetectorType::FAST && descriptor_type != DescriptorType::ORB)
+    if (!(detector_type == DetectorType::FAST && descriptor_type == DescriptorType::ORB))
     {
         output=false;
     }

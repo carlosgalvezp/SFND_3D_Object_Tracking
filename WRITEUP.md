@@ -186,7 +186,105 @@ Find examples where the TTC estimate of the Lidar sensor does not seem plausible
 Describe your observations and provide a sound argumentation why you think this
 happened.
 ```
-TODO
+
+To estimate the performance of TTC, we need an independent source of information
+(ground truth). We don't have this available in the course, so our performance
+evaluation will not be as reliable as it could be.
+
+We estimate the "real" TTC manually by observing the lidar cloud in top-view.
+The following data was collected:
+
+```
+Frame 0, t = 0.0: x_min = 7.97 m
+Frame 1, t = 0.1: x_min = 7.91 m
+Frame 2, t = 0.2: x_min = 7.85 m
+Frame 3, t = 0.3: x_min = 7.79 m
+```
+
+Those distances were extracted from the top-view point cloud, were no significant
+outliers were observed, so we should be able to trust these measurements.
+
+We notice that distance to the preceeding vehicle is reduced by 0.06m every 0.1 seconds,
+so the relative velocity between the ego and preceeding vehicle is 0.06 / 0.1 = 0.6 m/s.
+
+Therefore, we would expect the following "real" estimated TTCs (assuming constant relative
+velocity):
+```
+Frame 0, TTC = 13.28 m
+Frame 1, TTC = 13.18 m
+Frame 2, TTC = 13.08 m
+Frame 3, TTC = 12.98 m
+```
+
+In our experiments, we observe that in general the TTC obtained from lidar is in line with
+the previous "real" estimates, around 13 seconds TTC, decreasing over time as the ego vehicle
+gets closer to the preceeding vehicle.
+
+However we find a couple cases when the estimate is way off:
+
+**Example 1**
+
+*Observation*
+
+In frame 6, we obtain a TTC from lidar of 7 seconds, which is too little:
+
+![](images/report/lidar_7.png)
+
+*Motivation*
+
+Let's take a look at the lidar point clouds for frame 5 and frame 6:
+
+Frame 5                               | Frame 6
+--------------------------------------|------------------------------------------
+![](images/report/lidar_points_5.png) | ![](images/report/lidar_points_6.png)
+
+In Frame 5, `xmin = 7.64m` due to one outlier, but the implemented method
+takes care of filtering that and instead the predicted measurement is
+7.689 meters.
+
+In Frame 6, `xmin = 7.58m`, but it's a large region of points having this
+measurement, so it's not an outlier. If we look closely, we can see that the
+lidar is now detecting a **different part of the car** that is a little bit
+closer to the ego vehicle than before. Our code estimates now a distance
+of 7.58 meters since there's no outliers.
+
+The result is that the distance between ego and preceeding vehicle was
+reduced by 0.1 meters (instead of the usual 0.06m) in 0.1 seconds, which
+gives a higher relative speed of 1m/s and thus a smaller TTC.
+
+**Example 2**
+
+*Observation*
+
+In frame 7, we obtain a TTC from lidar of 47 seconds, which is way too much:
+
+![](images/report/lidar_47.png)
+
+*Motivation*
+
+Looking at the point clouds:
+
+Frame 6                               | Frame 7
+--------------------------------------|------------------------------------------
+![](images/report/lidar_points_6.png) | ![](images/report/lidar_points_7.png)
+
+The opposite problem happens now: in Frame 6 we detected a part of the car
+that was closer to the ego, and now in Frame 7 we are back to detecting the
+"usual" back of the car.
+
+The algorithm computes the following measures of distance:
+
+```
+minXPrev: 7.5815, minXCurr: 7.5655
+```
+
+So now it's only a distance of 0.02 meters travelled in 0.1 seconds, which gives a relative
+speed of 0.2 m/s (instead of 0.6 m/s) so we obtain a much larger TTC.
+
+**Solution**
+To solve these problems we should do tracking over more frames (instead of
+the last 2 frames) to be more robust against what part of the preceeding
+car is detected by the lidar.
 
 FP.6 Performance Evaluation 2
 -----------------------------

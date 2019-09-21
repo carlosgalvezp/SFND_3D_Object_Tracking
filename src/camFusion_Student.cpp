@@ -300,6 +300,8 @@ double computeTTCLidar(const std::vector<LidarPoint>& lidarPointsPrev,
     const double minXPrev = findClosestLidarPointInLane(lidarPointsPrev);
     const double minXCurr = findClosestLidarPointInLane(lidarPointsCurr);
 
+    std::cout << "minXPrev: " << minXPrev << ", minXCurr: " << minXCurr << std::endl;
+
     // Compute and return TTC
     const double dT = 1.0 / frameRate;
     const double TTC = (minXCurr * dT) / (minXPrev - minXCurr);
