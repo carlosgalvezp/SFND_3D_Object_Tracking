@@ -294,4 +294,56 @@ estimation. Find out which methods perform best and also include several example
 where camera-based TTC estimation is way off. As with Lidar, describe your
 observations again and also look into potential reasons.
 ```
-TODO
+
+All combinations of detectors and descriptor have been tested to provide an estimate of
+camera-based TTC. The results can be found in the `tts_camera.ods` spreadsheet.
+
+First of all, note that there are some combinations of detectors + descriptors for which
+TTC could not be computed, as we saw in the previous project. These combinations have been
+assigned the `NaN` value in the spreadsheet.
+
+The following picture shows the results for all combinations:
+
+![](images/report/ttc_all.png)
+
+It's a bit chaotic due to so many combinations, but we can observe that the majority of combinations
+does a reasonable job at computing the TTC, with a value a bit below 15 seconds in the first
+frame and around 10 seconds in the last frame, which makes sense as the ego vehicle is getting
+closer.
+
+We can split the results by detector type to find some difference.
+
+**Examples where TTC is way off**
+
+The worst TTC estimation comes when selecting HARRIS and ORB detectors, as shown below:
+
+![](images/report/ttc_off.png)
+
+*Motivation*
+
+The main reason for this, as we saw in the previous project, is that these detectors return
+**very few keypoints**, so it's hard to establish enough **realiable matches** between frames.
+We need a lot of keypoints that can be accurately matched between frames in order
+to compute a good estimate of TTC.
+
+**Examples where TTC is good**
+
+On the other hand, some combinations of detectors and descriptors provide a quite stable TTC
+estimate, as shown below:
+
+![](images/report/ttc_fast.png)
+![](images/report/ttc_shitomasi.png)
+![](images/report/ttc_sift.png)
+
+We can see the estimates are not perfectly decreasing monotonically, but they are quite stable
+over time. Shitomasi and SIFT are pretty good, but with a big computational load as we saw
+in the previous project.
+**Therefore a FAST-based detector would be the ideal choice for this application.**
+
+Perhaps one of the reasons why they are not monotonically decreasing is the short time between
+frames. The change in image is very small and the keypoint distances between frames are just
+one or two pixels, so there's not much more resolution that can be gained. If we would perform
+matches with more spacing in between we would probably obtain a more stable and decreasing
+estimate of TTC, at the cost of a higher latency (we need to wait until more frames are available),
+which might not be desirable since a collision-avoidance system should be able to react
+as fast as possible.
