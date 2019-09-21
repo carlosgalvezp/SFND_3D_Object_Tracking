@@ -162,7 +162,22 @@ Compute the time-to-collision in second for all matched 3D objects using only
 keypoint correspondences from the matched bounding boxes between current and
 previous frame.
 ```
-TODO
+This is implemented in the `computeTTCCamera` function, following previous lectures.
+The workflow is as follows:
+
+1. Create a vector to store all the distance ratios between matches.
+2. In a double for-loop iterating over the keypoint matches, compute the distances between
+   all keypoints, for both the previous and current frame. For each combination,
+   compute the `distanceRatio` as the ratio between the distance between keypoints
+   in the current frame and the distance between keypoints in the previous frame.
+3. Add all these distance ratios to a vector and compute the median of it, `medianDistRatio`, to
+   obtain a robust estimate.
+4. Finally compute the TTC with the formula given in the lectures:
+   ```cpp
+    double dT = 1.0 / frameRate;
+    TTC = -dT / (1.0 - medianDistRatio);
+    ```
+
 
 FP.5 Performance Evaluation 1
 -----------------------------
