@@ -11,7 +11,8 @@
 namespace
 {
 
-double distance(const LidarPoint& a, const LidarPoint& b)
+template <typename PointT>
+double distance(const PointT& a, const PointT& b)
 {
     return std::sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 }
@@ -38,7 +39,7 @@ double median(std::vector<T>& data)
 
 double findClosestLidarPointInLane(const std::vector<LidarPoint>& lidar_points)
 {
-    // Create a vector of x disances and sort them
+    // Create a vector of x distances and sort them
     std::vector<double> x_distances;
     for (const LidarPoint& point : lidar_points)
     {
@@ -198,27 +199,42 @@ void show3DObjects(std::vector<BoundingBox> &boundingBoxes, cv::Size worldSize, 
 
 
 // associate a given bounding box with the keypoints it contains
-void clusterKptMatchesWithROI(const std::vector<cv::KeyPoint> &kptsPrev,  // train
-                              const std::vector<cv::KeyPoint> &kptsCurr,  // query
+void clusterKptMatchesWithROI(const std::vector<cv::KeyPoint> &kptsPrev,  // query
+                              const std::vector<cv::KeyPoint> &kptsCurr,  // train
                               const std::vector<cv::DMatch> &kptMatches,
                               BoundingBox &boundingBoxCurr)
 {
-    // First, compute median (robust) of distance between descriptors to filter out later
-    std::vector<float> match_distances;
+    // First, get a list of matches that have keypoints inside the current bounding box
+    std::vector<cv::DMatch> kpt_matches_inside_box;
     for (const cv::DMatch& match : kptMatches)
     {
-        match_distances.push_back(match.distance);
-    }
-    const float median_match_distance = median(match_distances);
-
-    // Loop over matches and assign to bounding box if points are contained
-    for (const cv::DMatch& match : kptMatches)
-    {
-        if (((match.distance > 0.5 * median_match_distance) ||
-             (match.distance < 1.5 * median_match_distance)) &&
-            boundingBoxCurr.roi.contains(kptsCurr[match.queryIdx].pt))
+        if (boundingBoxCurr.roi.contains(kptsCurr[match.trainIdx].pt))
         {
-            boundingBoxCurr.kptMatches.push_back(match);
+            kpt_matches_inside_box.push_back(match);
+        }
+    }
+
+    // Then, compute the distance between current and previous keypoints, for all matches
+    std::vector<double> keypoint_distances;
+    for (const cv::DMatch& match : kpt_matches_inside_box)
+    {
+        const cv::Point2f& prev_point = kptsPrev[match.queryIdx].pt;
+        const cv::Point2f& curr_point = kptsCurr[match.trainIdx].pt;
+
+        keypoint_distances.push_back(distance(prev_point, curr_point));
+    }
+
+    // Compute a robust mean of the distances (mean)
+    std::vector<double> keypoint_distances_copy(keypoint_distances);
+    const double median_distance = median(keypoint_distances_copy);
+
+    // Add matches that are close enough to median
+    for (std::size_t i = 0U; i < keypoint_distances.size(); ++i)
+    {
+        if (keypoint_distances[i] > 0.5 * median_distance &&
+            keypoint_distances[i] < 2.0 * median_distance)
+        {
+            boundingBoxCurr.kptMatches.push_back(kpt_matches_inside_box[i]);
         }
     }
 }
