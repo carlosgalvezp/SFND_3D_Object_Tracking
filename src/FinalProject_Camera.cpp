@@ -322,7 +322,7 @@ std::vector<double> runExperiment(const DetectorType detectorType, const Descrip
                                                  sensorFrameRate);
                     //// EOF STUDENT ASSIGNMENT
 
-                    bVis = false;
+                    bVis = true;
                     if (bVis)
                     {
                         cv::Mat visImg = current_frame.cameraImg.clone();
@@ -367,6 +367,11 @@ bool isValidExperiment(const DetectorType& detector_type, const DescriptorType& 
         output = false;
     }
 
+    if (detector_type != DetectorType::FAST && descriptor_type != DescriptorType::ORB)
+    {
+        output=false;
+    }
+
     return output;
 }
 
@@ -408,7 +413,7 @@ int main(int argc, const char *argv[])
             }
             else
             {
-                ttcs_camera.push_back(std::vector<double>(ttcs_camera.front().size(), NAN));
+                ttcs_camera.push_back(std::vector<double>(18, NAN));
             }
         }
     }

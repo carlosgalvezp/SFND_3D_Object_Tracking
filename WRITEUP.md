@@ -137,7 +137,23 @@ Prepare the TTC computation based on camera measurements by associating keypoint
 correspondences to the bounding boxes which enclose them. All matches which satisfy
 this condition must be added to a vector in the respective bounding box.
 ```
-TODO
+
+This is implemented in the `clusterKptMatchesWithROI` function. The high-level overview
+is described below:
+
+1. First, keep only the keypoint matches that have enclosed keypoints in the current frame.
+2. For each of those selected matches, compute the Euclidean distance between the matched
+   points. Most of these matches should have the same distance since they all should
+   belong to a rigid object (the preceeding vehicle). Outliers (i.e. bad matches)
+   will have distances way different than the other distances. Store all these distances
+   in a vector (`keypoint_distances`).
+3. Compute the median of this vector (`median_distance`) in order to get a robust estimate
+   of what the distance between keypoints should be.
+4. Finally, store in the output only those matches whose distance between keypoints
+   is close enough to the median computed previously. We found empirically that keeping
+   points that are `>0.5 * median` and `<2.0 * median` gives a good result, filtering out
+   bad matches.
+
 
 FP.4 Compute Camera-based TTC
 -----------------------------
