@@ -295,24 +295,3 @@ where camera-based TTC estimation is way off. As with Lidar, describe your
 observations again and also look into potential reasons.
 ```
 TODO
-
-
-OBSERVATIONS
-============
-From top-view lidar, we observe the following distances to
-the preceeding vehicle:
-
-t = 0.0: 7.97 m
-t = 0.1: 7.91 m
-t = 0.2: 7.85 m
-t = 0.3: 7.79 m
-
-So the relative velocity to the preceeding vehicle is
-approximately 0.06 m / 0.1s = 0.6 m/s
-
-Therefore for t = 0.1 the real TTC would be:
-
-7.91 / 0.6 = **13.18 seconds** (approximately)
-
-And removing 0.1 seconds for the following frames assuming
-constant velocity models.

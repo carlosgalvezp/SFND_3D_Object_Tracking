@@ -17,4 +17,4 @@ build:
 
 .PHONY: 3d-object-tracking
 3d-object-tracking: build
-	$(call run_docker, /bin/bash -c 'cd build && ./3D_object_tracking')
+	$(call run_docker, /bin/bash -c 'cd build && ./3D_object_tracking $(ARGS)')

@@ -367,11 +367,6 @@ bool isValidExperiment(const DetectorType& detector_type, const DescriptorType& 
         output = false;
     }
 
-    if (!(detector_type == DetectorType::FAST && descriptor_type == DescriptorType::ORB))
-    {
-        output=false;
-    }
-
     return output;
 }
 
@@ -402,18 +397,28 @@ int main(int argc, const char *argv[])
 
     std::vector<std::vector<double>> ttcs_camera;
 
-    // Run all combinations
-    for (const DetectorType& detector_type : detectors)
+    if (argc == 2 && std::string(argv[1]) == "best")
     {
-        for (const DescriptorType& descriptor_type : descriptors)
+        const DetectorType best_detector = DetectorType::FAST;
+        const DescriptorType best_descriptor = DescriptorType::ORB;
+
+        ttcs_camera.push_back(runExperiment(best_detector, best_descriptor));
+    }
+    else
+    {
+        // Run all combinations
+        for (const DetectorType& detector_type : detectors)
         {
-            if (isValidExperiment(detector_type, descriptor_type))
+            for (const DescriptorType& descriptor_type : descriptors)
             {
-                ttcs_camera.push_back(runExperiment(detector_type, descriptor_type));
-            }
-            else
-            {
-                ttcs_camera.push_back(std::vector<double>(18, NAN));
+                if (isValidExperiment(detector_type, descriptor_type))
+                {
+                    ttcs_camera.push_back(runExperiment(detector_type, descriptor_type));
+                }
+                else
+                {
+                    ttcs_camera.push_back(std::vector<double>(18, NAN));
+                }
             }
         }
     }
@@ -423,14 +428,7 @@ int main(int argc, const char *argv[])
     {
         for (const double ttc_frame_i : ttc_data)
         {
-            if (!std::isnan(ttc_frame_i) && ttc_frame_i > 0 && ttc_frame_i < 25)
-            {
-                std::cout << ttc_frame_i << ", ";
-            }
-            else
-            {
-                std::cout << "nan" << ", ";
-            }
+            std::cout << ttc_frame_i << ", ";
         }
         std::cout << std::endl;
     }
