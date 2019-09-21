@@ -162,7 +162,7 @@ std::vector<double> runExperiment(const DetectorType detectorType, const Descrip
         clusterLidarWithROI(current_frame.boundingBoxes, current_frame.lidarPoints, shrinkFactor, P_rect_00, R_rect_00, RT);
 
         // Visualize 3D objects
-        bVis = false;
+        bVis = true;
         if(bVis)
         {
             show3DObjects(current_frame.boundingBoxes, cv::Size(4.0, 20.0), cv::Size(2000, 2000), true);
@@ -322,7 +322,7 @@ std::vector<double> runExperiment(const DetectorType detectorType, const Descrip
                                                  sensorFrameRate);
                     //// EOF STUDENT ASSIGNMENT
 
-                    bVis = false;
+                    bVis = true;
                     if (bVis)
                     {
                         cv::Mat visImg = current_frame.cameraImg.clone();
