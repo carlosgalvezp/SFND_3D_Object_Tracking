@@ -128,8 +128,11 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
 
         float confThreshold = 0.2;
         float nmsThreshold = 0.4;
+
+        bVis = false;
         detectObjects(current_frame.cameraImg, current_frame.boundingBoxes, confThreshold, nmsThreshold,
                       yoloBasePath, yoloClassesFile, yoloModelConfiguration, yoloModelWeights, bVis);
+        bVis = false;
 
         std::cout << "#2 : DETECT & CLASSIFY OBJECTS done" << std::endl;
 
@@ -281,6 +284,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
                     if (it1->second == it2->boxID) // check wether current match partner corresponds to this BB
                     {
                         currBB = &(*it2);
+                        break;
                     }
                 }
 
@@ -289,6 +293,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
                     if (it1->first == it2->boxID) // check wether current match partner corresponds to this BB
                     {
                         prevBB = &(*it2);
+                        break;
                     }
                 }
 
@@ -313,7 +318,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
                                                         sensorFrameRate);
                     //// EOF STUDENT ASSIGNMENT
 
-                    bVis = false;
+                    bVis = true;
                     if (bVis)
                     {
                         cv::Mat visImg = current_frame.cameraImg.clone();

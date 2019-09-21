@@ -56,6 +56,25 @@ double findClosestLidarPointInLane(const std::vector<LidarPoint>& lidar_points)
     return median(closest_x_distances);
 }
 
+template <typename T>
+bool in(const T& x, const std::vector<T>& array)
+{
+    return (std::find(array.begin(), array.end(), x) != array.end());
+}
+
+struct BoxIdxPair
+{
+    int prev_box_idx;
+    int curr_box_idx;
+    int n_matched_keypoints;
+};
+
+bool operator==(const BoxIdxPair& a, const BoxIdxPair& b)
+{
+    return (a.prev_box_idx == b.prev_box_idx) &&
+           (a.curr_box_idx == b.curr_box_idx);
+}
+
 }  // namespace
 
 
@@ -285,38 +304,61 @@ void matchBoundingBoxes(const std::vector<cv::DMatch>& matches,
     // Prev frame = query
     // Curr frame = train
     // map<int, int> = map<prev, curr>
-    for (const BoundingBox& prev_box : prevFrame.boundingBoxes)
+    // First, go through all matches and store the number of successfull matches
+    std::vector<BoxIdxPair> box_matches;
+
+    for (const cv::DMatch& match : matches)
     {
-        // Compute how many keypoints both boxes share
-        std::map<int, int> matches_for_prev_box;
-        for(const BoundingBox& curr_box : currFrame.boundingBoxes)
+        for (const BoundingBox& prev_box : prevFrame.boundingBoxes)
         {
-            for (const cv::DMatch& match : matches)
+            for (const BoundingBox& curr_box : currFrame.boundingBoxes)
             {
-                // It's a match if both boxes contain the keypoint
                 if (prev_box.roi.contains(prevFrame.keypoints[match.queryIdx].pt) &&
                     curr_box.roi.contains(currFrame.keypoints[match.trainIdx].pt))
                 {
-                    ++matches_for_prev_box[curr_box.boxID];
+                    BoxIdxPair pair;
+                    pair.prev_box_idx = prev_box.boxID;
+                    pair.curr_box_idx = curr_box.boxID;
+
+                    const auto it = std::find(box_matches.begin(), box_matches.end(), pair);
+                    if (it == box_matches.end())
+                    {
+                        // This pair is new -> add to vector
+                        pair.n_matched_keypoints = 1;
+                        box_matches.push_back(pair);
+                    }
+                    else
+                    {
+                        // Existing pair -> increase number of keypoints
+                        it->n_matched_keypoints++;
+                    }
                 }
             }
         }
+    }
 
-        // Get the box with the max number of keypoints, if any
-        int best_match_id = -1;
-        int max_n_matches = -1;
-        for (auto it = matches_for_prev_box.begin(); it != matches_for_prev_box.end(); ++it)
-        {
-            if (it->second > max_n_matches)
-            {
-                best_match_id = it->first;
-                max_n_matches = it->second;
-            }
-        }
+    // Sort matches keeping the ones with larger number of matches first
+    std::sort(box_matches.begin(), box_matches.end(), [](const BoxIdxPair& a, const BoxIdxPair& b) {
+        return a.n_matched_keypoints > b.n_matched_keypoints;
+    });
 
-        if (best_match_id != -1)
+    // Create final output
+    std::vector<int> matched_prev_boxes;
+    std::vector<int> matched_curr_boxes;
+
+    for (const auto& box_match : box_matches)
+    {
+        const int idx_prev = box_match.prev_box_idx;
+        const int idx_curr = box_match.curr_box_idx;
+
+        if (!in(idx_prev, matched_prev_boxes) && !in(idx_curr, matched_curr_boxes))
         {
-            bbBestMatches[prev_box.boxID] = best_match_id;
+            bbBestMatches[idx_prev] = idx_curr;
+
+            matched_prev_boxes.push_back(idx_prev);
+            matched_curr_boxes.push_back(idx_curr);
+
+            std::cout << "Matching prev box " << idx_prev << " with curr box " << idx_curr << std::endl;
         }
     }
 }
