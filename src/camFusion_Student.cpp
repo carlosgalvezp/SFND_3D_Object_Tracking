@@ -300,13 +300,9 @@ double computeTTCLidar(const std::vector<LidarPoint>& lidarPointsPrev,
     const double minXPrev = findClosestLidarPointInLane(lidarPointsPrev);
     const double minXCurr = findClosestLidarPointInLane(lidarPointsCurr);
 
-    std::cout << "min x prev: " << minXPrev << ", min x curr: " << minXCurr << std::endl;
-
     // Compute and return TTC
     const double dT = 1.0 / frameRate;
     const double TTC = (minXCurr * dT) / (minXPrev - minXCurr);
-
-    std::cout << "TTC LIDAR: " << TTC << std::endl;
 
     return TTC;
 }
@@ -373,8 +369,6 @@ void matchBoundingBoxes(const std::vector<cv::DMatch>& matches,
 
             matched_prev_boxes.push_back(idx_prev);
             matched_curr_boxes.push_back(idx_curr);
-
-            std::cout << "Matching prev box " << idx_prev << " with curr box " << idx_curr << std::endl;
         }
     }
 }

@@ -326,7 +326,7 @@ void runExperiment(const DetectorType detectorType, const DescriptorType descrip
                         cv::rectangle(visImg, cv::Point(currBB->roi.x, currBB->roi.y), cv::Point(currBB->roi.x + currBB->roi.width, currBB->roi.y + currBB->roi.height), cv::Scalar(0, 255, 0), 2);
 
                         char str[200];
-                        sprintf(str, "TTC Lidar : %f s, TTC Camera : %f s", ttcLidar, ttcCamera);
+                        sprintf(str, "[%lu] TTC Lidar : %f s, TTC Camera : %f s", imgIndex, ttcLidar, ttcCamera);
                         putText(visImg, str, cv::Point2f(80, 50), cv::FONT_HERSHEY_PLAIN, 2, cv::Scalar(0,0,255));
 
                         std::string windowName = "Final Results : TTC";
